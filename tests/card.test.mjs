@@ -29,6 +29,8 @@ const attrs={contract:'RHI_MULTIMEDIA_EXPERIENCE_V1',schema_version:1,revision:1
 let called=[];card.hass={states:{'sensor.rhi_multimedia_experience':{state:'ready',attributes:attrs}},async callService(...args){called.push(args);}};
 assert.match(card.shadowRoot.innerHTML,/Rooms: 1/);assert.match(card.shadowRoot.innerHTML,/Salon/);assert.match(card.shadowRoot.innerHTML,/Watch TV/);assert.match(card.shadowRoot.innerHTML,/Backend 0.1.3/);
 await card.execute('salon','start_activity','watch_tv');assert.equal(called.length,1);assert.equal(called[0][0],'rhi_multimedia');assert.equal(called[0][1],'start_activity');
+assert.match(card.shadowRoot.innerHTML,/Waiting for Multimedia backend readback/);
+assert.doesNotMatch(card.shadowRoot.innerHTML,/backend confirmed/);
 attrs.revision++;card.hass={states:{'sensor.rhi_multimedia_experience':{state:'ready',attributes:attrs}},async callService(...args){called.push(args);}};
 assert.match(card.shadowRoot.innerHTML,/backend confirmed/);
 card.navigate('devices');assert.match(window.location.href,/foo=bar/);assert.match(window.location.href,/multimedia_view=devices/);
