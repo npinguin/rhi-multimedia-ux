@@ -64,7 +64,7 @@ class HomeBrainMultimediaCard extends HTMLElement {
     const room=contract.ready?contract.rooms.find(row=>row.id===roomId):null;
     const intent=rhiMmIntent(room,service,activity);
     if(!intent){this._feedback={state:'error',message:'Action unavailable: check Multimedia activity, Foundation selection and source status.'};this._lastSignature='';this.render();return;}
-    this._pending={room:roomId,activity,service};
+    this._pending={room:roomId,activity,service,sinceRevision:contract.revision};
     this._feedback={state:'pending',message:'Command submitted. Waiting for Multimedia backend readback…'};
     this._lastSignature='';this.render();
     try {
@@ -83,6 +83,7 @@ class HomeBrainMultimediaCard extends HTMLElement {
   reconcile(model) {
     if(!this._pending||!model.ready)return;
     const p=this._pending;const room=model.rooms.find(r=>r.id===p.room);if(!room)return;
+    if (model.revision<=p.sinceRevision) return; // Older 'active' is not proof of THIS command.
     const complete=(p.service==='stop_activity'&&room.phase==='idle') ||
       (p.service!=='stop_activity'&&room.phase==='active'&&room.activity_id===(p.activity||room.activity_id));
     if(complete){this._pending=null;this._feedback={state:'ok',message:`${room.name}: backend confirmed ${rhiMmRoomStatus(room).toLowerCase()}.`};if(this._timer)clearTimeout(this._timer);return;}
