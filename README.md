@@ -1,5 +1,7 @@
 # Robotix Home Intelligence Multimedia UX
 
+![Robotix Multimedia Premium dashboard hero](src/assets/heroes/multimedia-overview.svg)
+
 Public HACS **Dashboard** package for Multimedia Premium, following the shared RHI UX Core 1.6.4 design grammar and branding used by Energy and Mobility.
 
 **One card:** `custom:homebrain-multimedia-card` with Overview, Rooms, Activities, Devices, Diagnostics. No additional custom cards required.
