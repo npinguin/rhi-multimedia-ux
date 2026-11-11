@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync,readdirSync} from 'node:fs';
+const root=new URL('../',import.meta.url);const rd=p=>readFileSync(new URL(p,root),'utf8');
+const pkg=JSON.parse(rd('package.json'));const manifest=JSON.parse(rd('dist/PACKAGE_MANIFEST.json'));
+assert.equal(manifest.version,pkg.version);assert.ok(existsSync(new URL('dist/assets/heroes/multimedia-overview.svg',root)));
+const bundle=rd('dist/rhi-multimedia-ux.js');
+assert.match(bundle,/homebrain-multimedia-card/);assert.match(bundle,/RHI_MULTIMEDIA_EXPERIENCE_V1/);
+assert.match(bundle,/rhiUxDomainShell/);assert.match(bundle,/Robotix.be/);
+assert.ok(!bundle.includes('__RHI_UX_COMPANY_LOGO_INLINE__'));assert.ok(!bundle.includes('__RHI_MM_UX_VERSION__'));
+assert.match(bundle,/hacsfiles\/rhi-multimedia-ux\/assets/);
+assert.equal(readdirSync(new URL('.github/workflows',root)).length,3);
+console.log('Complete HACS Dashboard install tree, core brand, asset path and workflows PASS');

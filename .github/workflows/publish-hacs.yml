@@ -1,0 +1,80 @@
+name: Publish HACS
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.repository }}-publish-candidate
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify exact validated main and publish immutable HACS TEST
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enforce exact-main, authorized TEST and immutable source package
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch origin main --quiet
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+          node tools/verify-dist.mjs
+          node tools/check-release.mjs
+          VERSION=$(node -p "require('./package.json').version")
+          test "$(node -p "require('./release/COORDINATED_PUBLICATION_GATE.json').test_request.expected_tag")" = "v${VERSION}"
+          git fetch origin --tags --quiet
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            mkdir -p /tmp/mmux-tag
+            git archive "refs/tags/v${VERSION}" dist package.json hacs.json | tar -x -C /tmp/mmux-tag
+            diff -qr /tmp/mmux-tag/dist dist
+            cmp /tmp/mmux-tag/package.json package.json
+            cmp /tmp/mmux-tag/hacs.json hacs.json
+          fi
+      - name: Publish immutable TEST candidate without release assets
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          if ! git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            git tag "$TAG" "$CANDIDATE_SHA"
+            git push origin "$TAG"
+          fi
+          test "$(git rev-list -n 1 "$TAG")" = "$CANDIDATE_SHA"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --json targetCommitish --jq '.targetCommitish')" = "$CANDIDATE_SHA"
+            echo 'Identical immutable release already exists.'
+          else
+            gh release create "$TAG" --target "$CANDIDATE_SHA" \
+              --title "RHI Multimedia UX ${TAG} — TEST CANDIDATE" \
+              --notes-file release/RELEASE_NOTES.md
+          fi
+          test "$(gh release view "$TAG" --json assets --jq '.assets | length')" = 0
+          test "$(gh release view "$TAG" --json isPrerelease --jq '.isPrerelease')" = false
+          {
+            echo '## Multimedia Premium HACS TEST release'
+            echo "- Tagged exact validated SHA: ${CANDIDATE_SHA}"
+            echo "- Tag: ${TAG}"
+            echo '- HACS plugin install: complete dist tree from immutable tag'
+            echo '- Release assets: zero; publication rebuilds: zero'
+            echo '- Target Home Assistant: NOT EXECUTED; stable NOT APPROVED'
+          } >> "$GITHUB_STEP_SUMMARY"

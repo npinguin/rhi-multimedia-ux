@@ -1,0 +1,14 @@
+{
+  "product": "rhi-multimedia-ux",
+  "version": "0.1.0",
+  "contract": "RHI_MULTIMEDIA_EXPERIENCE_V1",
+  "minimum_backend_version": "0.1.3",
+  "stage": "test_candidate",
+  "runtime_artifact": "dist/rhi-multimedia-ux.js",
+  "hacs_category": "dashboard",
+  "hacs_validation_category": "plugin",
+  "hacs_package_root": "dist",
+  "hacs_delivery_mode": "immutable_tag_dist_tree",
+  "release_asset_policy": "none",
+  "ux_core": {"package": "rhi-ux-core", "version": "1.6.4", "source_commit": "501caa2c038f21f299933e68aa320e3d40198709", "branding_owner": "rhi-ux-core"}
+}
