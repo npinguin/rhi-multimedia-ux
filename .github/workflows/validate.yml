@@ -49,6 +49,14 @@ jobs:
           npm run clean
           npm run build
           diff -qr /tmp/rhi-multimedia-ux-first-dist dist
+      - name: Preserve complete PR install candidate for visual QA
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhi-multimedia-ux-preview-${{ github.sha }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
   hacs:
     name: HACS distribution
     needs: source
@@ -83,29 +91,3 @@ jobs:
             echo '- HACS package validation: ${{ needs.hacs.result }}'
             echo '- Field HA acceptance: NOT EXECUTED'
           } >> "$GITHUB_STEP_SUMMARY"
-  bootstrap_dist_once:
-    name: Create first committed package from canonical source (one-time engineering)
-    if: github.event_name == 'pull_request' && github.head_ref == 'feature/1-premium-dashboard'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Build and commit exact candidate package
-        run: |
-          set -euo pipefail
-          npm ci --ignore-scripts
-          npm run build
-          node tools/verify-dist.mjs
-          git config user.name 'RHI Engineering Bot'
-          git config user.email 'rhi-engineering@users.noreply.github.com'
-          git add dist
-          if ! git diff --cached --quiet; then
-            git commit -m 'build: commit deterministic complete Multimedia UX HACS dist'
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
