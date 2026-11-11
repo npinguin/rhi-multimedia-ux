@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "package": "rhi-multimedia-ux",
+  "version": "0.1.0",
+  "core_version": "1.6.4",
+  "files": [
+    {
+      "path": "assets/branding/company-logo.svg",
+      "size": 17019,
+      "sha256": "264f0d86798a2a53e30b8beb5cae366e4b0916adbb3716b3deb23b5ddbed053d"
+    },
+    {
+      "path": "assets/heroes/multimedia-overview.svg",
+      "size": 3258,
+      "sha256": "6d5786c6ca7f84257dca8e91116b6cd8522b6af162d5c9e215d8264052159b9b"
+    },
+    {
+      "path": "rhi-multimedia-ux.js",
+      "size": 93858,
+      "sha256": "5aae0a1fbf950895ae54fe02de7d9750bba6603f56fc1054bd769f24d1addd9b"
+    },
+    {
+      "path": "rhi-multimedia-ux.js.sha256",
+      "size": 87,
+      "sha256": "6749a484f61bd230661dd0778929e10a18bdec2ecb3a547a25fb64bf88d84209"
+    }
+  ]
+}

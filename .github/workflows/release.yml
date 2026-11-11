@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.repository }}-stable-promotion
+  cancel-in-progress: false
+
+jobs:
+  stable:
+    name: Require exact candidate field qualification and explicit owner approval
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fail closed unless physical HA + rollback + owner approval are proven
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          q=json.loads(Path('release/QUALIFICATION.json').read_text())
+          a=json.loads(Path('release/STABLE_APPROVAL.json').read_text())
+          tag=q['candidate_tag']
+          assert all(q[k]=='PASS' for k in ('home_assistant_install','desktop','tablet','phone','command_readback','navigation_reload','rollback')), 'Target HA runtime or rollback not PASS'
+          assert a['approval_status']=='APPROVED' and a['approved_tag']==tag and a['approved_main_sha'], 'Explicit exact stable approval not present'
+          sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          assert a['approved_main_sha']==sha, 'Approved SHA does not equal current main'
+          PY
+      - name: Verify immutable tag and promote its notes, without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(node -p "require('./release/QUALIFICATION.json').candidate_tag")
+          SHA=$(git rev-parse HEAD)
+          git fetch --tags
+          test "$(git rev-list -n 1 "$TAG")" = "$SHA"
+          test "$(gh release view "$TAG" --json assets --jq '.assets | length')" = 0
+          node tools/verify-dist.mjs
+          gh release edit "$TAG" --title "RHI Multimedia UX ${TAG}" --notes-file release/RELEASE_NOTES.md

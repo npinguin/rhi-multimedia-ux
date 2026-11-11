@@ -1,0 +1,93 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Source, contracts and deterministic package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Build from pinned UX Core and validate all screens
+        run: |
+          npm run build
+          npm test
+          node tools/check-release.mjs
+      - name: Require committed dist to match source exactly
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain -- dist)" ]; then
+            echo '::error::Canonical committed dist differs from source; run npm run build and commit it.'
+            git status --porcelain -- dist
+            exit 1
+          fi
+      - name: Deterministic second build (no drift)
+        run: |
+          set -euo pipefail
+          cp -a dist /tmp/rhi-multimedia-ux-first-dist
+          npm run clean
+          npm run build
+          diff -qr /tmp/rhi-multimedia-ux-first-dist dist
+      - name: Preserve complete PR install candidate for visual QA
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhi-multimedia-ux-preview-${{ github.sha }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
+  hacs:
+    name: HACS distribution
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@885037da508419fd08c13515967aec868dfdee2d
+        with:
+          category: plugin
+  gate:
+    name: RHI UX / Validate
+    if: always()
+    needs: [source, hacs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed on any incomplete validation
+        env:
+          SOURCE: ${{ needs.source.result }}
+          HACS: ${{ needs.hacs.result }}
+        run: |
+          test "$SOURCE" = success
+          test "$HACS" = success
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Multimedia Premium UX — RHI Validate'
+            echo "- Exact source SHA: ${GITHUB_SHA}"
+            echo '- UX Core: pinned 1.6.4'
+            echo '- Source/contract/render/package: ${{ needs.source.result }}'
+            echo '- HACS package validation: ${{ needs.hacs.result }}'
+            echo '- Field HA acceptance: NOT EXECUTED'
+          } >> "$GITHUB_STEP_SUMMARY"
